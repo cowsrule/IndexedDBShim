@@ -1,7 +1,7 @@
 /*jshint globalstrict: true*/
 'use strict';
 (function(idbModules){
-    var DEFAULT_DB_SIZE = 4 * 1024 * 1024;
+    var DEFAULT_DB_SIZE = 2 * 1024 * 1024;
     if (!window.openDatabase) {
         return;
     }
@@ -10,11 +10,14 @@
     sysdb.transaction(function(tx){
         tx.executeSql("SELECT * FROM dbVersions", [], function(t, data){
             // dbVersions already exists
+            shimIndexedDB.notifyIsReady();
         }, function(){
             // dbVersions does not exist, so creating it
             sysdb.transaction(function(tx){
                 tx.executeSql("CREATE TABLE IF NOT EXISTS dbVersions (name VARCHAR(255), version INT);", [], function(){
+                    shimIndexedDB.notifyIsReady();
                 }, function(){
+                    shimIndexedDB.notifyIsReady();
                     idbModules.util.throwDOMException("Could not create table __sysdb__ to save DB versions");
                 });
             });
@@ -24,7 +27,43 @@
        idbModules.DEBUG && console.log("Error in sysdb transaction - when selecting from dbVersions", arguments);
     });
     
+    var isShimReady = false;
+    var isReadyCallbacks = undefined;
+
     var shimIndexedDB = {
+        notifyIsReady: function()
+        {
+            isShimReady = true;
+
+            if (isReadyCallbacks)
+            {
+                for (var i = 0; i < isReadyCallbacks.length; ++i)
+                {
+                    isReadyCallbacks[i]();
+                }
+
+                isReadyCallbacks = undefined;
+            }
+        },
+        onIsReady: function(cb)
+        {
+            if (!isShimReady)
+            {
+                if (isReadyCallbacks)
+                {
+                    isReadyCallbacks.push(cb);
+                }
+                else
+                {
+                    isReadyCallbacks = [ cb ];
+                }
+            }
+            else
+            {
+                setTimeout(cb, 0);
+            }
+        },
+
         /**
          * The IndexedDB Method to create a new database and return the DB
          * @param {Object} name
