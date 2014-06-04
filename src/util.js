@@ -27,10 +27,10 @@
         var e = new DOMException.prototype.constructor(0, message);
         e.name = name;
         e.message = message;
-        if (idbModules.DEBUG) {
-            console.log(name, message, error, e);
-            console.trace && console.trace();
-        }
+        // if (idbModules.DEBUG) {
+        //     console.log(name, message, error, e);
+        //     console.trace && console.trace();
+        // }
         throw e;
     }
 

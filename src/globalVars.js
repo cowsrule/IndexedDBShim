@@ -5,6 +5,7 @@
         window.shimIndexedDB = idbModules.shimIndexedDB;
         if (window.shimIndexedDB) {
             window.shimIndexedDB.__useShim = function(){
+                console.log('---- Using SQL Shim ----');
                 window.indexedDB = idbModules.shimIndexedDB;
                 window.IDBDatabase = idbModules.IDBDatabase;
                 window.IDBTransaction = idbModules.IDBTransaction;
@@ -41,10 +42,11 @@
         }
     }
 
-    if ((typeof window.indexedDB === "undefined" || poorIndexedDbSupport) && typeof window.openDatabase !== "undefined") {
+    var forceSQL = window.location.hash.indexOf('forcesql=true') >= 0;
+
+    if (forceSQL || ((typeof window.indexedDB === "undefined" || poorIndexedDbSupport) && typeof window.openDatabase !== "undefined")) {
         window.shimIndexedDB.__useShim();
-    }
-    else {
+    } else {
         window.IDBDatabase = window.IDBDatabase || window.webkitIDBDatabase;
         window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction;
         window.IDBCursor = window.IDBCursor || window.webkitIDBCursor;
@@ -60,4 +62,3 @@
     }
     
 }(window, idbModules));
-

@@ -50,10 +50,10 @@ var cleanInterface = false;
         var e = new DOMException.prototype.constructor(0, message);
         e.name = name;
         e.message = message;
-        if (idbModules.DEBUG) {
-            console.log(name, message, error, e);
-            console.trace && console.trace();
-        }
+        // if (idbModules.DEBUG) {
+        //     console.log(name, message, error, e);
+        //     console.trace && console.trace();
+        // }
         throw e;
     }
 
@@ -691,7 +691,7 @@ var cleanInterface = false;
     };
 
     IDBCursor.prototype["continue"] = function (key) {
-        var recordsToPreloadOnContinue = idbModules.cursorPreloadPackSize || 100;
+        var recordsToPreloadOnContinue = idbModules.cursorPreloadPackSize || 10000;
         var me = this;
 
         this.__idbObjectStore.transaction.__addToTransactionQueue(function (tx, args, success, error) {
@@ -1274,7 +1274,7 @@ var cleanInterface = false;
     var IDBTransaction = function(storeNames, mode, db){
         if (typeof mode === "number") {
             this.mode = mode;
-            (mode !== 2) && idbModules.DEBUG && console.log("Mode should be a string, but was specified as ", mode);
+            idbModules.DEBUG && (mode !== 2) && console.log("Mode should be a string, but was specified as ", mode);
         }
         else 
             if (typeof mode === "string") {
@@ -1505,7 +1505,7 @@ var cleanInterface = false;
 /*jshint globalstrict: true*/
 'use strict';
 (function(idbModules){
-    var DEFAULT_DB_SIZE = 4 * 1024 * 1024;
+    var DEFAULT_DB_SIZE = 2 * 1024 * 1024;
     if (!window.openDatabase) {
         return;
     }
@@ -1514,11 +1514,14 @@ var cleanInterface = false;
     sysdb.transaction(function(tx){
         tx.executeSql("SELECT * FROM dbVersions", [], function(t, data){
             // dbVersions already exists
+            shimIndexedDB.notifyIsReady();
         }, function(){
             // dbVersions does not exist, so creating it
             sysdb.transaction(function(tx){
                 tx.executeSql("CREATE TABLE IF NOT EXISTS dbVersions (name VARCHAR(255), version INT);", [], function(){
+                    shimIndexedDB.notifyIsReady();
                 }, function(){
+                    shimIndexedDB.notifyIsReady();
                     idbModules.util.throwDOMException("Could not create table __sysdb__ to save DB versions");
                 });
             });
@@ -1528,7 +1531,43 @@ var cleanInterface = false;
        idbModules.DEBUG && console.log("Error in sysdb transaction - when selecting from dbVersions", arguments);
     });
     
+    var isShimReady = false;
+    var isReadyCallbacks = undefined;
+
     var shimIndexedDB = {
+        notifyIsReady: function()
+        {
+            isShimReady = true;
+
+            if (isReadyCallbacks)
+            {
+                for (var i = 0; i < isReadyCallbacks.length; ++i)
+                {
+                    isReadyCallbacks[i]();
+                }
+
+                isReadyCallbacks = undefined;
+            }
+        },
+        onIsReady: function(cb)
+        {
+            if (!isShimReady)
+            {
+                if (isReadyCallbacks)
+                {
+                    isReadyCallbacks.push(cb);
+                }
+                else
+                {
+                    isReadyCallbacks = [ cb ];
+                }
+            }
+            else
+            {
+                setTimeout(cb, 0);
+            }
+        },
+
         /**
          * The IndexedDB Method to create a new database and return the DB
          * @param {Object} name
@@ -1684,6 +1723,7 @@ var cleanInterface = false;
         window.shimIndexedDB = idbModules.shimIndexedDB;
         if (window.shimIndexedDB) {
             window.shimIndexedDB.__useShim = function(){
+                console.log('---- Using SQL Shim ----');
                 window.indexedDB = idbModules.shimIndexedDB;
                 window.IDBDatabase = idbModules.IDBDatabase;
                 window.IDBTransaction = idbModules.IDBTransaction;
@@ -1720,10 +1760,11 @@ var cleanInterface = false;
         }
     }
 
-    if ((typeof window.indexedDB === "undefined" || poorIndexedDbSupport) && typeof window.openDatabase !== "undefined") {
+    var forceSQL = window.location.hash.indexOf('forcesql=true') >= 0;
+
+    if (forceSQL || ((typeof window.indexedDB === "undefined" || poorIndexedDbSupport) && typeof window.openDatabase !== "undefined")) {
         window.shimIndexedDB.__useShim();
-    }
-    else {
+    } else {
         window.IDBDatabase = window.IDBDatabase || window.webkitIDBDatabase;
         window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction;
         window.IDBCursor = window.IDBCursor || window.webkitIDBCursor;
@@ -1733,10 +1774,9 @@ var cleanInterface = false;
         }
         /* Some browsers (e.g. Chrome 18 on Android) support IndexedDb but do not allow writing of these properties */
         try {
-        window.IDBTransaction.READ_ONLY = window.IDBTransaction.READ_ONLY || "readonly";
-        window.IDBTransaction.READ_WRITE = window.IDBTransaction.READ_WRITE || "readwrite";
+            window.IDBTransaction.READ_ONLY = window.IDBTransaction.READ_ONLY || "readonly";
+            window.IDBTransaction.READ_WRITE = window.IDBTransaction.READ_WRITE || "readwrite";
         } catch (e) {}
     }
     
 }(window, idbModules));
-

@@ -16,7 +16,7 @@
     var IDBTransaction = function(storeNames, mode, db){
         if (typeof mode === "number") {
             this.mode = mode;
-            (mode !== 2) && idbModules.DEBUG && console.log("Mode should be a string, but was specified as ", mode);
+            idbModules.DEBUG && (mode !== 2) && console.log("Mode should be a string, but was specified as ", mode);
         }
         else 
             if (typeof mode === "string") {
