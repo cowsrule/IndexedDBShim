@@ -6,6 +6,8 @@
         if (window.shimIndexedDB) {
             window.shimIndexedDB.__useShim = function(){
                 console.log('---- Using SQL Shim ----');
+                idbModules.shimIndexedDB.loadShim();
+
                 window.indexedDB = idbModules.shimIndexedDB;
                 window.IDBDatabase = idbModules.IDBDatabase;
                 window.IDBTransaction = idbModules.IDBTransaction;

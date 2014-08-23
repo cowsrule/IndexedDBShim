@@ -2,44 +2,54 @@
 'use strict';
 (function(idbModules){
     var DEFAULT_DB_SIZE = 2 * 1024 * 1024;
-    if (!window.openDatabase) {
-        return;
-    }
-    // The sysDB to keep track of version numbers for databases
-    var sysdb = window.openDatabase("__sysdb__", 1, "System Database", DEFAULT_DB_SIZE);
-    sysdb.transaction(function(tx){
-        tx.executeSql("SELECT * FROM dbVersions", [], function(t, data){
-            // dbVersions already exists
-            shimIndexedDB.notifyIsReady();
-        }, function(){
-            // dbVersions does not exist, so creating it
-            sysdb.transaction(function(tx){
-                tx.executeSql("CREATE TABLE IF NOT EXISTS dbVersions (name VARCHAR(255), version INT);", [], function(){
-                    shimIndexedDB.notifyIsReady();
-                }, function(){
-                    shimIndexedDB.notifyIsReady();
-                    idbModules.util.throwDOMException("Could not create table __sysdb__ to save DB versions");
-                });
-            });
-        });
-    }, function(){
-        // sysdb Transaction failed
-       idbModules.DEBUG && console.log("Error in sysdb transaction - when selecting from dbVersions", arguments);
-    });
-    
+
+    var isShimReady = false;
+    var isReadyCallbacks;
+
+    var sysdb;
+
+    var shimInitSuccess = false;
     var isShimReady = false;
     var isReadyCallbacks = undefined;
 
     var shimIndexedDB = {
-        notifyIsReady: function()
+        loadShim: function()
+        {
+            if (!window.openDatabase) {
+                return;
+            }
+            // The sysDB to keep track of version numbers for databases
+            sysdb = window.openDatabase("__sysdb__", 1, "System Database", DEFAULT_DB_SIZE);
+            sysdb.transaction(function(tx){
+                tx.executeSql("SELECT * FROM dbVersions", [], function(t, data){
+                    // dbVersions already exists
+                    shimIndexedDB.notifyIsReady(true);
+                }, function(){
+                    // dbVersions does not exist, so creating it
+                    sysdb.transaction(function(tx){
+                        tx.executeSql("CREATE TABLE IF NOT EXISTS dbVersions (name VARCHAR(255), version INT);", [], function(){
+                            shimIndexedDB.notifyIsReady(true);
+                        }, function(){
+                            shimIndexedDB.notifyIsReady(false);
+                            idbModules.util.throwDOMException("Could not create table __sysdb__ to save DB versions");
+                        });
+                    });
+                });
+            }, function(){
+                // sysdb Transaction failed
+               idbModules.DEBUG && console.log("Error in sysdb transaction - when selecting from dbVersions", arguments);
+            });
+        },
+        notifyIsReady: function(success)
         {
             isShimReady = true;
+            shimInitSuccess = success;
 
             if (isReadyCallbacks)
             {
                 for (var i = 0; i < isReadyCallbacks.length; ++i)
                 {
-                    isReadyCallbacks[i]();
+                    isReadyCallbacks[i](/*initSuccess*/shimInitSuccess);
                 }
 
                 isReadyCallbacks = undefined;
@@ -60,7 +70,7 @@
             }
             else
             {
-                setTimeout(cb, 0);
+                setTimeout(function () { cb(/*initSuccess*/shimInitSuccess); }, 0);
             }
         },
 
