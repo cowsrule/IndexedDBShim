@@ -9,8 +9,6 @@
     var sysdb;
 
     var shimInitSuccess = false;
-    var isShimReady = false;
-    var isReadyCallbacks = undefined;
 
     var shimIndexedDB = {
         loadShim: function()
@@ -21,23 +19,14 @@
             // The sysDB to keep track of version numbers for databases
             sysdb = window.openDatabase("__sysdb__", 1, "System Database", DEFAULT_DB_SIZE);
             sysdb.transaction(function(tx){
-                tx.executeSql("SELECT * FROM dbVersions", [], function(t, data){
-                    // dbVersions already exists
+                tx.executeSql("CREATE TABLE IF NOT EXISTS dbVersions (name VARCHAR(255), version INT);", [], function() {
                     shimIndexedDB.notifyIsReady(true);
                 }, function(){
-                    // dbVersions does not exist, so creating it
-                    sysdb.transaction(function(tx){
-                        tx.executeSql("CREATE TABLE IF NOT EXISTS dbVersions (name VARCHAR(255), version INT);", [], function(){
-                            shimIndexedDB.notifyIsReady(true);
-                        }, function(){
-                            shimIndexedDB.notifyIsReady(false);
-                            idbModules.util.throwDOMException("Could not create table __sysdb__ to save DB versions");
-                        });
-                    });
+                    shimIndexedDB.notifyIsReady(false);
                 });
             }, function(){
                 // sysdb Transaction failed
-               idbModules.DEBUG && console.log("Error in sysdb transaction - when selecting from dbVersions", arguments);
+               idbModules.DEBUG && console.log("Error in sysdb transaction - when creating dbVersions", arguments);
             });
         },
         notifyIsReady: function(success)
