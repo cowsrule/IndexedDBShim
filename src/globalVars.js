@@ -10,7 +10,8 @@
                     console.log('---- Using SQL Shim ----');
                     idbModules.shimIndexedDB.loadShim();
 
-                    window.indexedDB = idbModules.shimIndexedDB;
+                    window.dbProvider = idbModules.shimIndexedDB;
+
                     window.IDBDatabase = idbModules.IDBDatabase;
                     window.IDBTransaction = idbModules.IDBTransaction;
                     window.IDBCursor = idbModules.IDBCursor;

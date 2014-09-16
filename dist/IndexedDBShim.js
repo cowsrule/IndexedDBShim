@@ -1727,7 +1727,8 @@ var cleanInterface = false;
                     console.log('---- Using SQL Shim ----');
                     idbModules.shimIndexedDB.loadShim();
 
-                    window.indexedDB = idbModules.shimIndexedDB;
+                    window.dbProvider = idbModules.shimIndexedDB;
+
                     window.IDBDatabase = idbModules.IDBDatabase;
                     window.IDBTransaction = idbModules.IDBTransaction;
                     window.IDBCursor = idbModules.IDBCursor;
@@ -1749,9 +1750,9 @@ var cleanInterface = false;
             };
         }
     }
-    
+
     window.dbProvider = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.oIndexedDB || window.msIndexedDB;
-    
+
     /*
     detect browsers with known IndexedDb issues (e.g. Android pre-4.4)
     */
