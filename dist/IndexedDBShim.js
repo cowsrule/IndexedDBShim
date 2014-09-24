@@ -691,7 +691,7 @@ var cleanInterface = false;
     };
 
     IDBCursor.prototype["continue"] = function (key) {
-        var recordsToPreloadOnContinue = idbModules.cursorPreloadPackSize || 10000;
+        var recordsToPreloadOnContinue = idbModules.cursorPreloadPackSize || 1000;
         var me = this;
 
         this.__idbObjectStore.transaction.__addToTransactionQueue(function (tx, args, success, error) {
@@ -1734,8 +1734,8 @@ var cleanInterface = false;
                     window.IDBCursor = idbModules.IDBCursor;
                     window.IDBKeyRange = idbModules.IDBKeyRange;
                     // On some browsers the assignment fails, overwrite with the defineProperty method
-                    if (window.indexedDB !== idbModules.shimIndexedDB && Object.defineProperty) {
-                        Object.defineProperty(window, 'indexedDB', {
+                    if (window.dbProvider !== idbModules.shimIndexedDB && Object.defineProperty) {
+                        Object.defineProperty(window, 'dbProvider', {
                             value: idbModules.shimIndexedDB
                         });
                     }

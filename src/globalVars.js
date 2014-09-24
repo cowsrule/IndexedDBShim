@@ -17,8 +17,8 @@
                     window.IDBCursor = idbModules.IDBCursor;
                     window.IDBKeyRange = idbModules.IDBKeyRange;
                     // On some browsers the assignment fails, overwrite with the defineProperty method
-                    if (window.indexedDB !== idbModules.shimIndexedDB && Object.defineProperty) {
-                        Object.defineProperty(window, 'indexedDB', {
+                    if (window.dbProvider !== idbModules.shimIndexedDB && Object.defineProperty) {
+                        Object.defineProperty(window, 'dbProvider', {
                             value: idbModules.shimIndexedDB
                         });
                     }

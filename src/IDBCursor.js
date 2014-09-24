@@ -93,7 +93,7 @@
     };
 
     IDBCursor.prototype["continue"] = function (key) {
-        var recordsToPreloadOnContinue = idbModules.cursorPreloadPackSize || 10000;
+        var recordsToPreloadOnContinue = idbModules.cursorPreloadPackSize || 1000;
         var me = this;
 
         this.__idbObjectStore.transaction.__addToTransactionQueue(function (tx, args, success, error) {
