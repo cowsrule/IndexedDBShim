@@ -39,14 +39,14 @@
         var sql = ["SELECT * FROM ", idbModules.util.quote(me.__idbObjectStore.name)];
         var sqlValues = [];
         sql.push("WHERE ", me.__keyColumnName, " NOT NULL");
-        if (me.__range && (me.__range.lower || me.__range.upper)) {
+        if (me.__range && (me.__range.lower !== undefined || me.__range.upper !== undefined)) {
             sql.push("AND");
-            if (me.__range.lower) {
+            if (me.__range.lower !== undefined) {
                 sql.push(me.__keyColumnName + (me.__range.lowerOpen ? " >" : " >= ") + " ?");
                 sqlValues.push(idbModules.Key.encode(me.__range.lower));
             }
-            (me.__range.lower && me.__range.upper) && sql.push("AND");
-            if (me.__range.upper) {
+            (me.__range.lower !== undefined && me.__range.upper !== undefined) && sql.push("AND");
+            if (me.__range.upper !== undefined) {
                 sql.push(me.__keyColumnName + (me.__range.upperOpen ? " < " : " <= ") + " ?");
                 sqlValues.push(idbModules.Key.encode(me.__range.upper));
             }
@@ -59,7 +59,11 @@
             sql.push("AND " + me.__keyColumnName + " >= ?");
             sqlValues.push(idbModules.Key.encode(me.__lastKeyContinued));
         }
-        sql.push("ORDER BY ", me.__keyColumnName);
+
+        // Determine the ORDER BY direction based on the cursor.
+        var direction = me.direction === 'prev' || me.direction === 'prevunique' ? 'DESC' : 'ASC';
+
+        sql.push("ORDER BY ", me.__keyColumnName, " " + direction);
         sql.push("LIMIT " + recordsToLoad + " OFFSET " + me.__offset);
         idbModules.DEBUG && console.log(sql.join(" "), sqlValues);
 
@@ -142,9 +146,25 @@
         idbModules.Sca.encode(valueToUpdate, function(encoded) {
             me.__idbObjectStore.transaction.__pushToQueue(request, function(tx, args, success, error){
                 me.__find(undefined, tx, function(key, value, primaryKey){
-                    var sql = "UPDATE " + idbModules.util.quote(me.__idbObjectStore.name) + " SET value = ? WHERE key = ?";
+                    var store = me.__idbObjectStore,
+                        storeProperties = me.__idbObjectStore.transaction.db.__storeProperties;
+                    var params = [encoded];
+                    var sql = "UPDATE " + idbModules.util.quote(store.name) + " SET value = ?";
+                    var indexList = storeProperties[store.name] && storeProperties[store.name].indexList;
+                    // Also correct the indexes in the table
+                    if (indexList) {
+                        for (var index in indexList) {
+                            var indexProps = indexList[index];
+                            sql += ", " + index + " = ?";
+                            params.push(idbModules.Key.encode(valueToUpdate[indexProps.keyPath]));
+                        }
+                    }
+                    sql += " WHERE key = ?";
+                    params.push(idbModules.Key.encode(primaryKey));
+
                     idbModules.DEBUG && console.log(sql, encoded, key, primaryKey);
-                    tx.executeSql(sql, [encoded, idbModules.Key.encode(primaryKey)], function(tx, data){
+                    tx.executeSql(sql, params, function(tx, data){
+                        me.__prefetchedData = null;
                         if (data.rowsAffected === 1) {
                             success(key);
                         }
@@ -167,6 +187,7 @@
                 var sql = "DELETE FROM  " + idbModules.util.quote(me.__idbObjectStore.name) + " WHERE key = ?";
                 idbModules.DEBUG && console.log(sql, key, primaryKey);
                 tx.executeSql(sql, [idbModules.Key.encode(primaryKey)], function(tx, data){
+                    me.__prefetchedData = null;
                     if (data.rowsAffected === 1) {
                         // lower the offset or we will miss a row
                         me.__offset--;
